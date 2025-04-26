@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard</title>
+  <style>
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ccc; padding: 8px; }
+    input, button { margin: 4px; }
+    .tabs {
+  margin: 20px 0;
+  display: flex;
+  gap: 10px;
+}
+.tabs button {
+  padding: 8px 16px;
+  background: #eee;
+  border: none;
+  cursor: pointer;
+}
+.tabs button:hover {
+  background: #ddd;
+}
+#table-container {
+  margin-top: 20px;
+}
+  </style>
+</head>
+<body>
+  <h1>Products Management</h1>
+  <form id="product-form">
+    <input name="name" placeholder="Name" required>
+    <input name="category" placeholder="Category" required>
+    <input name="price" type="number" step="0.01" placeholder="Price" required>
+    <input name="stock" type="number" placeholder="Stock" required>
+    <button type="submit">Save</button>
+    <button type="button" id="cancel-edit" style="display:none">Cancel</button>
+  </form>
+
+  <table id="products-table">
+    <thead>
+      <tr><th>ID</th><th>Name</th><th>Category</th><th>Price</th><th>Stock</th><th>Actions</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <h2>Cart</h2>
+  <ul id="cart-list"></ul>
+  <div class="tabs">
+    <button onclick="showTable('products')">Products</button>
+    <button onclick="showTable('customers')">Customers</button>
+    <button onclick="showTable('orders')">Orders</button>
+    <button onclick="showTable('order_items')">Order Items</button>
+  </div>
+  
+  <div id="table-container">
+    <!-- Tables will load here dynamically -->
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
