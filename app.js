@@ -1,233 +1,123 @@
-// app.js (frontend JavaScript)
-
-// Load products on page load
 document.addEventListener('DOMContentLoaded', () => {
     loadProducts();
     
-    // Handle form submission
+    // Form submission handler
     document.getElementById('product-form').addEventListener('submit', function(e) {
       e.preventDefault();
       const formData = new FormData(this);
       const product = {
         name: formData.get('name'),
         category: formData.get('category'),
-        price: formData.get('price'),
-        stock: formData.get('stock')
+        price: parseFloat(formData.get('price')),
+        stock: parseInt(formData.get('stock'))
       };
       
-      saveProduct(product);
+      // Validate inputs
+      if (!product.name || !product.category || isNaN(product.price) || isNaN(product.stock)) {
+        alert('Please fill all fields with valid values');
+        return;
+      }
+      
+      const isEditing = this.dataset.editing;
+      if (isEditing) {
+        updateProduct(isEditing, product);
+      } else {
+        createProduct(product);
+      }
     });
+  
+    // Cancel edit button
+    document.getElementById('cancel-edit').addEventListener('click', resetForm);
   });
   
+  // Load all products
   function loadProducts() {
     fetch('/api/products')
-      .then(response => response.json())
+      .then(response => {
+        if (!response.ok) throw new Error('Network response was not ok');
+        return response.json();
+      })
       .then(products => {
         const tableBody = document.querySelector('#products-table tbody');
         tableBody.innerHTML = '';
   
         products.forEach(product => {
           const row = document.createElement('tr');
-  
           row.innerHTML = `
-            <td>${product.product_id}</td>
-            <td>${product.name}</td>
-            <td>${product.category}</td>
-            <td>${product.price}</td>
-            <td>${product.stock}</td>
-            <td>
-              <button onclick="editProduct(${product.product_id})">Edit</button>
-              <button onclick="deleteProduct(${product.product_id})">Delete</button>
-            </td>
-          `;
-  
+  <td>${product.product_id}</td>
+  <td>${product.name}</td>
+  <td>${product.category}</td>
+  <td>$${Number(product.price).toFixed(2)}</td>
+  <td>${product.stock}</td>
+  <td>
+    <button class="edit-btn" onclick="editProduct(${product.product_id})">Edit</button>
+    <button class="delete-btn" onclick="deleteProduct(${product.product_id})">Delete</button>
+  </td>
+`;
           tableBody.appendChild(row);
         });
       })
-      .catch(err => console.error('Error loading products:', err));
+      .catch(err => {
+        console.error('Error loading products:', err);
+        alert('Failed to load products');
+      });
   }
   
-  function saveProduct(product, id = null) {
-    const url = id ? `/api/products/${id}` : '/api/products';
-    const method = id ? 'PUT' : 'POST';
-  
-    fetch(url, {
-      method: method,
+  // Create new product
+  function createProduct(product) {
+    fetch('/api/products', {
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(product)
     })
-    .then(response => response.json())
-    .then(data => {
-      console.log('Success:', data);
-      loadProducts();
-      resetForm();
+    .then(response => {
+      if (!response.ok) throw new Error('Failed to create product');
+      return response.json();
     })
-    .catch(err => console.error('Error saving product:', err));
-  }
-  
-  function showTable(tableName) {
-    fetch(`/api/${tableName}`)
-      .then(response => response.json())
-      .then(data => {
-        const container = document.getElementById('table-container');
-        container.innerHTML = `
-          <h2>${tableName.toUpperCase()}</h2>
-          <table id="${tableName}-table">
-            <thead>
-              <tr>${generateTableHeaders(data[0])}</tr>
-            </thead>
-            <tbody>
-              ${data.map(row => `
-                <tr>${generateTableRow(row)}</tr>
-              `).join('')}
-            </tbody>
-          </table>
-        `;
-      });
-  }
-
-  function editProduct(id) {
-    // Fetch existing data
-    fetch(`/api/products/${id}`)
-      .then(res => res.json())
-      .then(product => {
-        // Populate form
-        document.getElementById('product-name').value = product.name;
-        // ... other fields ...
-        
-        // Change form to update mode
-        document.getElementById('product-form').dataset.editing = id;
-      });
-  }
-  
-  function saveProduct() {
-    const id = form.dataset.editing; // Get ID if editing
-    const method = id ? 'PUT' : 'POST';
-    const url = id ? `/api/products/${id}` : '/api/products';
-  
-    fetch(url, { method, /* ... */ })
     .then(() => {
       loadProducts();
       resetForm();
-    });
-  }
-
-  function addCustomer() {
-    fetch('/api/customers', {
-      method: 'POST',
-      body: JSON.stringify({
-        name: document.getElementById('customer-name').value,
-        email: document.getElementById('customer-email').value,
-        // ... other fields ...
-      })
+      alert('Product created successfully!');
     })
-    .then(() => loadCustomers());
-  }
-
-  function editCustomer(id) {
-    fetch(`/api/customers/${id}`)
-      .then(res => res.json())
-      .then(customer => {
-        // Populate form
-        document.getElementById('customer-name').value = customer.name;
-        // ... other fields ...
-      });
-  }
-
-  function deleteCustomer(id) {
-    fetch(`/api/customers/${id}`, { method: 'DELETE' })
-    .then(() => loadCustomers());
-  }
-
-  function createOrder() {
-    fetch('/api/orders', {
-      method: 'POST',
-      body: JSON.stringify({
-        customer_id: selectedCustomerId,
-        items: selectedProducts // Array of {product_id, quantity}
-      })
+    .catch(err => {
+      console.error('Error creating product:', err);
+      alert('Failed to create product: ' + err.message);
     });
   }
-
-  function editOrder(id) {
-    fetch(`/api/orders/${id}`)
-      .then(res => res.json())
-      .then(order => {
-        // Populate order editor
-      });
-  }
-
-  function addOrderItem(orderId) {
-    fetch(`/api/orders/${orderId}/items`, {
-      method: 'POST',
-      body: JSON.stringify({
-        product_id: selectedProductId,
-        quantity: quantity
-      })
-    });
-  }
-
-  function updateOrderItem(orderId, itemId) {
-    fetch(`/api/orders/${orderId}/items/${itemId}`, {
+  
+  // Update existing product
+  function updateProduct(id, product) {
+    fetch(`/api/products/${id}`, {
       method: 'PUT',
-      body: JSON.stringify({ quantity: newQuantity })
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(product)
+    })
+    .then(response => {
+      if (!response.ok) throw new Error('Failed to update product');
+      return response.json();
+    })
+    .then(() => {
+      loadProducts();
+      resetForm();
+      alert('Product updated successfully!');
+    })
+    .catch(err => {
+      console.error('Error updating product:', err);
+      alert('Failed to update product: ' + err.message);
     });
   }
-
-  function removeOrderItem(orderId, itemId) {
-    fetch(`/api/orders/${orderId}/items/${itemId}`, {
-      method: 'DELETE'
-    });
-  }
-
-  function deleteOrder(id) {
-    fetch(`/api/orders/${id}`, { method: 'DELETE' });
-  }
-
-  function deleteProduct(id) {
-    if (confirm('Delete this product?')) {
-      fetch(`/api/products/${id}`, { method: 'DELETE' })
-      .then(() => loadProducts());
-    }
-  }
-
-  // In app.js
-function addProduct() {
-  const name = document.getElementById('product-name').value;
-  const category = document.getElementById('product-category').value;
-  const price = document.getElementById('product-price').value;
-  const stock = document.getElementById('product-stock').value;
-
-  fetch('/api/products', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, category, price, stock })
-  })
-  .then(() => loadProducts()); // Refresh the list
-}
   
-  function generateTableHeaders(data) {
-    return Object.keys(data).map(key => 
-      `<th>${key.replace('_', ' ')}</th>`
-    ).join('');
-  }
-  
-  function generateTableRow(row) {
-    return Object.values(row).map(value => 
-      `<td>${value || '-'}</td>`
-    ).join('');
-  }
-  
-  // Load products by default on page load
-  document.addEventListener('DOMContentLoaded', () => {
-    showTable('products');
-  });
-
+  // Edit product (populate form)
   function editProduct(id) {
     fetch(`/api/products/${id}`)
-      .then(response => response.json())
+      .then(response => {
+        if (!response.ok) throw new Error('Failed to fetch product');
+        return response.json();
+      })
       .then(product => {
         const form = document.getElementById('product-form');
         form.querySelector('[name="name"]').value = product.name;
@@ -235,33 +125,80 @@ function addProduct() {
         form.querySelector('[name="price"]').value = product.price;
         form.querySelector('[name="stock"]').value = product.stock;
         
-        // Add a hidden field or data attribute to track editing
         form.dataset.editing = id;
         document.getElementById('cancel-edit').style.display = 'inline-block';
+        document.querySelector('#product-form button[type="submit"]').textContent = 'Update Product';
       })
-      .catch(err => console.error('Error fetching product:', err));
+      .catch(err => {
+        console.error('Error fetching product:', err);
+        alert('Failed to load product for editing');
+      });
   }
   
+  // Delete product
   function deleteProduct(id) {
     if (confirm('Are you sure you want to delete this product?')) {
       fetch(`/api/products/${id}`, {
         method: 'DELETE'
       })
-      .then(response => response.json())
-      .then(data => {
-        console.log('Deleted:', data);
-        loadProducts();
+      .then(response => {
+        if (!response.ok) throw new Error('Failed to delete product');
+        return response.json();
       })
-      .catch(err => console.error('Error deleting product:', err));
+      .then(() => {
+        loadProducts();
+        alert('Product deleted successfully!');
+      })
+      .catch(err => {
+        console.error('Error deleting product:', err);
+        alert('Failed to delete product: ' + err.message);
+      });
     }
   }
   
+  // Reset form to initial state
   function resetForm() {
-    const form = document.getElementById('product-form');
-    form.reset();
-    delete form.dataset.editing;
+    document.getElementById('product-form').reset();
+    delete document.getElementById('product-form').dataset.editing;
     document.getElementById('cancel-edit').style.display = 'none';
+    document.querySelector('#product-form button[type="submit"]').textContent = 'Add Product';
   }
   
-  // Handle cancel edit button
-  document.getElementById('cancel-edit').addEventListener('click', resetForm);
+  // View switching functions
+  function showTable(tableName) {
+    fetch(`/api/${tableName}`)
+      .then(response => {
+        if (!response.ok) throw new Error(`Failed to load ${tableName}`);
+        return response.json();
+      })
+      .then(data => {
+        if (data.length === 0) {
+          document.getElementById('table-container').innerHTML = `<p>No ${tableName} found</p>`;
+          return;
+        }
+  
+        const container = document.getElementById('table-container');
+        const headers = Object.keys(data[0]).map(key => 
+          `<th>${key.replace('_', ' ')}</th>`
+        ).join('');
+        
+        const rows = data.map(row => {
+          const cells = Object.values(row).map(value => 
+            `<td>${value !== null ? value : '-'}</td>`
+          ).join('');
+          return `<tr>${cells}</tr>`;
+        }).join('');
+        
+        container.innerHTML = `
+          <h2>${tableName.charAt(0).toUpperCase() + tableName.slice(1)}</h2>
+          <table id="${tableName}-table">
+            <thead><tr>${headers}</tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        `;
+      })
+      .catch(err => {
+        console.error(`Error loading ${tableName}:`, err);
+        document.getElementById('table-container').innerHTML = `<p>Error loading ${tableName}</p>`;
+      });
+  }
